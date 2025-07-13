@@ -3,7 +3,6 @@ package com.example.timer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.WorkDuration
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -57,6 +56,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnStart?.setOnClickListener {
+            if (pause) {
+                pause = !pause
+                btnPause?.text = if (pause) "Continue" else "Pause"
+            }
             hideKeyboard()
             secondsCount =
                 (editText?.text?.toString()?.takeIf { it.isNotBlank() }?.toLong() ?: 0L) * 1000
@@ -71,9 +74,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnReset?.setOnClickListener {
-            mainThreadHandler?.removeCallbacks(timerRunnable!!)
+            pause = false
+            btnPause?.text = "Pause"
+
+            timerRunnable?.let {
+                mainThreadHandler?.removeCallbacks(it)
+            }
+
             lastTickTime = 0L
             remainingTime = 0L
+            timerRunnable = null
             tvTimer?.text = ""
             (btnReset as View).visibility = View.GONE
             (btnPause as View).visibility = View.GONE
@@ -85,9 +95,9 @@ class MainActivity : AppCompatActivity() {
             btnPause?.text = if (pause) "Continue" else "Pause"
             if (!pause) {
                 lastTickTime = System.currentTimeMillis()
-                btnStart?.isEnabled = true
-            } else {
                 btnStart?.isEnabled = false
+            } else {
+                btnStart?.isEnabled = true
             }
         }
     }
@@ -99,7 +109,7 @@ class MainActivity : AppCompatActivity() {
 
 
     fun updateTimer() {
-        lastTickTime = System.currentTimeMillis() // Initial tick time when timer starts
+        lastTickTime = System.currentTimeMillis()
 
         timerRunnable = object : Runnable {
             override fun run() {
@@ -109,19 +119,19 @@ class MainActivity : AppCompatActivity() {
                     remainingTime -= delta
                     lastTickTime = currentTime
                 }
-
-                if (remainingTime > 0) {
-                    val minutes = remainingTime / 60_000
-                    val seconds = (remainingTime % 60_000) / 1_000
-                    val millis = remainingTime % 1_000
-                    tvTimer?.text = String.format("%d:%02d.%03d", minutes, seconds, millis)
-                    mainThreadHandler?.postDelayed(this, DELAY)
-                } else {
+                if (remainingTime <= 0 && !pause) {
+                    remainingTime = 0L
                     tvTimer?.text = "Конец!"
                     btnStart?.isEnabled = true
                     (btnReset as View).visibility = View.GONE
                     (btnPause as View).visibility = View.GONE
                     showMessage("Время вышло!")
+                } else {
+                    val minutes = remainingTime / 60_000
+                    val seconds = (remainingTime % 60_000) / 1_000
+                    val millis = remainingTime % 1_000
+                    tvTimer?.text = String.format("%d:%02d.%03d", minutes, seconds, millis)
+                    mainThreadHandler?.postDelayed(this, DELAY)
                 }
             }
         }
