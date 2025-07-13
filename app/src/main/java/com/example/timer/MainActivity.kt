@@ -1,0 +1,132 @@
+package com.example.timer
+
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.WorkDuration
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : AppCompatActivity() {
+    private var mainThreadHandler: Handler? = null
+    private var editText: EditText? = null
+    private var btnStart: Button? = null
+    private var btnReset: Button? = null
+    private var btnPause: Button? = null
+    private var tvTimer: TextView? = null
+    var pause: Boolean = false
+    var secondsCount: Long = 0
+    var remainingTime: Long = 0
+    var timerRunnable: Runnable? = null
+    private var lastTickTime: Long = 0
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+        mainThreadHandler = Handler(Looper.getMainLooper())
+        editText = findViewById(R.id.inputText)
+        btnStart = findViewById(R.id.btnStart)
+        btnReset = findViewById(R.id.btnReset)
+        btnPause = findViewById(R.id.btnPause)
+        (btnReset as View).visibility = View.GONE
+        tvTimer = findViewById(R.id.tvTimer)
+
+        btnStart?.setOnClickListener {
+            secondsCount =
+                (editText?.text?.toString()?.takeIf { it.isNotBlank() }?.toLong() ?: 0L) * 1000
+            if (secondsCount <= 0) {
+                showMessage("Не вверный ввод числа")
+            } else {
+                startTimer(secondsCount)
+                btnStart?.isEnabled = false
+                (btnReset as View).visibility = View.VISIBLE
+                (btnPause as View).visibility = View.VISIBLE
+            }
+        }
+
+        btnReset?.setOnClickListener {
+            mainThreadHandler?.removeCallbacks(timerRunnable!!)
+            lastTickTime = 0L
+            remainingTime = 0L
+            tvTimer?.text = ""
+            (btnReset as View).visibility = View.GONE
+            (btnPause as View).visibility = View.GONE
+            btnStart?.isEnabled = true
+        }
+
+        btnPause?.setOnClickListener {
+            pause = !pause
+            btnPause?.text = if (pause) "Continue" else "Pause"
+            if (!pause) {
+                lastTickTime = System.currentTimeMillis() // Reset tick time on resume
+            }
+        }
+
+
+    }
+
+    fun startTimer(duration: Long) {
+        remainingTime = duration
+        updateTimer()
+    }
+
+
+    fun updateTimer() {
+        lastTickTime = System.currentTimeMillis() // Initial tick time when timer starts
+
+        timerRunnable = object : Runnable {
+            override fun run() {
+                val currentTime = System.currentTimeMillis()
+                if (!pause) {
+                    val delta = currentTime - lastTickTime
+                    remainingTime -= delta
+                    lastTickTime = currentTime
+                }
+
+                if (remainingTime > 0) {
+                    val minutes = remainingTime / 60_000
+                    val seconds = (remainingTime % 60_000) / 1_000
+                    val millis = remainingTime % 1_000
+                    tvTimer?.text = String.format("%d:%02d.%03d", minutes, seconds, millis)
+                    mainThreadHandler?.postDelayed(this, DELAY)
+                } else {
+                    tvTimer?.text = "Конец!"
+                    btnStart?.isEnabled = true
+                    (btnReset as View).visibility = View.GONE
+                    (btnPause as View).visibility = View.GONE
+                    showMessage("Время вышло!")
+                }
+            }
+        }
+
+        mainThreadHandler?.post(timerRunnable!!)
+    }
+
+
+
+    fun showMessage(message: String) {
+        val rootView = findViewById<View>(android.R.id.content)?.rootView
+        if (rootView != null) {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    companion object {
+        private const val DELAY = 50L
+    }
+
+}
