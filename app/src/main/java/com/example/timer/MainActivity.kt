@@ -84,7 +84,10 @@ class MainActivity : AppCompatActivity() {
             pause = !pause
             btnPause?.text = if (pause) "Continue" else "Pause"
             if (!pause) {
-                lastTickTime = System.currentTimeMillis() // Reset tick time on resume
+                lastTickTime = System.currentTimeMillis()
+                btnStart?.isEnabled = true
+            } else {
+                btnStart?.isEnabled = false
             }
         }
     }
