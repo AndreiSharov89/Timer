@@ -3,6 +3,8 @@ package com.example.timer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -126,6 +128,15 @@ class MainActivity : AppCompatActivity() {
                     (btnReset as View).visibility = View.GONE
                     (btnPause as View).visibility = View.GONE
                     showMessage("Время вышло!")
+                    val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        vibrator.vibrate(
+                            VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE)
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(500)
+                    }
                 } else {
                     val minutes = remainingTime / 60_000
                     val seconds = (remainingTime % 60_000) / 1_000
