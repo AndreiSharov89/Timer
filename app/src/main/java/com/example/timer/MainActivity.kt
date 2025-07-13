@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.WorkDuration
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -45,7 +46,18 @@ class MainActivity : AppCompatActivity() {
         (btnReset as View).visibility = View.GONE
         tvTimer = findViewById(R.id.tvTimer)
 
+        editText?.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_NULL) {
+                hideKeyboard()
+                btnStart?.performClick() // Запустить таймер
+                true
+            } else {
+                false
+            }
+        }
+
         btnStart?.setOnClickListener {
+            hideKeyboard()
             secondsCount =
                 (editText?.text?.toString()?.takeIf { it.isNotBlank() }?.toLong() ?: 0L) * 1000
             if (secondsCount <= 0) {
@@ -75,8 +87,6 @@ class MainActivity : AppCompatActivity() {
                 lastTickTime = System.currentTimeMillis() // Reset tick time on resume
             }
         }
-
-
     }
 
     fun startTimer(duration: Long) {
@@ -117,11 +127,43 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
     fun showMessage(message: String) {
         val rootView = findViewById<View>(android.R.id.content)?.rootView
         if (rootView != null) {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun hideKeyboard() {
+        val view = this.currentFocus
+        if (view != null) {
+            val imm =
+                getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putLong("remainingTime", remainingTime)
+        outState.putBoolean("isPaused", pause)
+        outState.putBoolean("isRunning", timerRunnable != null)
+        outState.putString("timerText", tvTimer?.text?.toString())
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        remainingTime = savedInstanceState.getLong("remainingTime", 0)
+        pause = savedInstanceState.getBoolean("isPaused", false)
+        val wasRunning = savedInstanceState.getBoolean("isRunning", false)
+        tvTimer?.text = savedInstanceState.getString("timerText", "")
+
+        if (wasRunning && remainingTime > 0) {
+            btnStart?.isEnabled = false
+            (btnReset as View).visibility = View.VISIBLE
+            (btnPause as View).visibility = View.VISIBLE
+            btnPause?.text = if (pause) "Continue" else "Pause"
+            updateTimer()
         }
     }
 
